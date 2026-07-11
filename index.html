@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MegaStore - Online Shop & Order Panel</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --dark: #0f172a;
+            --light-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #334155;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background-color: var(--light-bg); color: var(--text-main); }
+        
+        .navbar {
+            background: var(--dark);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .navbar h1 { font-size: 22px; cursor: pointer; }
+        .nav-buttons { display: flex; gap: 15px; }
+        .btn-nav {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-nav:hover { background: var(--primary); }
+
+        .container { max-width: 1300px; margin: 30px auto; padding: 0 20px; }
+        
+        /* Views Toggle */
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        /* Customer Shop Grid */
+        .shop-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .search-bar { width: 300px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+        .product-card { background: white; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between; }
+        .cat-tag { font-size: 12px; color: var(--primary); font-weight: bold; text-transform: uppercase; }
+        .prod-title { font-size: 18px; margin: 10px 0; font-weight: 600; }
+        .prod-price { font-size: 20px; color: var(--dark); font-weight: 700; margin-bottom: 15px; }
+        .btn-order { background: var(--primary); color: white; border: none; width: 100%; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-order:hover { background: var(--primary-dark); }
+
+        /* Admin Layout Split */
+        .admin-grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; }
+        .admin-card { background: white; padding: 25px; border-radius: 12px; border: 1px solid var(--border); height: fit-content; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; }
+        .btn-submit { background: var(--success); color: white; border: none; width: 100%; padding: 12px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
+        /* Tables for Admin */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f1f5f9; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: #fee2e2; color: #991b1b; }
+        .status-badge.completed { background: #d1fae5; color: #065f46; }
+
+        /* Modal Order Form */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 200; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 400px; }
+        .close-modal { float: right; cursor: pointer; font-size: 20px; }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+        <h1 onclick="switchView('shop')"><i class="fa-solid fa-shop"></i> MegaStore</h1>
+        <div class="nav-buttons">
+            <button class="btn-nav" onclick="switchView('shop')"><i class="fa-solid fa-bag-shopping"></i> Browse Shop</button>
+            <button class="btn-nav" style="background:#475569" onclick="switchView('admin')"><i class="fa-solid fa-user-gear"></i> Admin Panel</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <!-- 1. CUSTOMER SHOP VIEW -->
+        <div id="shopView" class="view-section active">
+            <div class="shop-header">
+                <h2>Our Products</h2>
+                <input type="text" id="shopSearch" class="search-bar" placeholder="🔍 Search items..." oninput="renderShop()">
+            </div>
+            <div class="product-grid" id="shopGrid">
+                <!-- Products list here dynamically -->
+            </div>
+        </div>
+
+        <!-- 2. ADMIN CONTROL PANEL VIEW -->
+        <div id="adminView" class="view-section">
+            <div class="admin-grid">
+                <!-- Add Product Form -->
+                <div class="admin-card">
+                    <h3><i class="fa-solid fa-plus"></i> Add New Product</h3><br>
+                    <form id="addProductForm">
+                        <div class="form-group">
+                            <label>Product Name</label>
+                            <input type="text" id="pName" class="form-control" required placeholder="e.g. Wireless Mouse">
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="pCategory" class="form-control">
+                                <option value="Stationery">Stationery</option>
+                                <option value="Mobile Accessories">Mobile Accessories</option>
+                                <option value="Cosmetics & Female Items">Cosmetics & Female Items</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Price (৳)</label>
+                            <input type="number" id="pPrice" class="form-control" required placeholder="500">
+                        </div>
+                        <button type="submit" class="btn-submit">Publish Product</button>
+                    </form>
+                </div>
+
+                <!-- Live Orders Monitor Sheet -->
+                <div class="admin-card">
+                    <h3><i class="fa-solid fa-list-check"></i> Customer Orders List</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Product</th>
+                                <th>Customer Details</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminOrdersTable">
+                            <!-- Orders show here dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ORDER MODAL -->
+    <div id="orderModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h3>Confirm Your Order</h3><br>
+            <form id="submitOrderForm">
+                <input type="hidden" id="orderProductId">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="custName" class="form-control" required placeholder="Enter Full Name">
+                </div>
+                <div class="form-group">
+                    <label>Mobile Number</label>
+                    <input type="tel" id="custPhone" class="form-control" required placeholder="017XXXXXXXX">
+                </div>
+                <div class="form-group">
+                    <label>Delivery Address</label>
+                    <textarea id="custAddress" class="form-control" required placeholder="Full Address"></textarea>
+                </div>
+                <button type="submit" class="btn-submit" style="background:var(--primary)">Place Order (Cash on Delivery)</button>
+            </form>
+        </div>
+    </div>
+
+<script>
+    // Data Management
+    let products = JSON.parse(localStorage.getItem('online_shop_products')) || [
+        { id: 1, name: "Premium Notebook", category: "Stationery", price: 120 },
+        { id: 2, name: "Fast Charger 20W", category: "Mobile Accessories", price: 450 },
+        { id: 3, name: "Matte Lipstick Pink", category: "Cosmetics & Female Items", price: 350 }
+    ];
+    let orders = JSON.parse(localStorage.getItem('online_shop_orders')) || [];
+
+    // Navigation Switcher
+    function switchView(viewName) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        if(viewName === 'shop') document.getElementById('shopView').classList.add('active');
+        if(viewName === 'admin') document.getElementById('adminView').classList.add('active');
+    }
+
+    // Render Products for Customers
+    function renderShop() {
+        const search = document.getElementById('shopSearch').value.toLowerCase();
+        const grid = document.getElementById('shopGrid');
+        grid.innerHTML = '';
+
+        let filtered = products.filter(p => p.name.toLowerCase().includes(search));
+
+        filtered.forEach(p => {
+            grid.innerHTML += `
+                <div class="product-card">
+                    <div>
+                        <span class="cat-tag">${p.category}</span>
+                        <h3 class="prod-title">${p.name}</h3>
+                    </div>
+                    <div>
+                        <div class="prod-price">৳${p.price}</div>
+                        <button class="btn-order" onclick="openOrderModal(${p.id})"><i class="fa-solid fa-cart-plus"></i> Order Now</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // Form Event: Add New Product
+    document.getElementById('addProductForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const newProd = {
+            id: Date.now(),
+            name: document.getElementById('pName').value,
+            category: document.getElementById('pCategory').value,
+            price: parseFloat(document.getElementById('pPrice').value)
+        };
+        products.unshift(newProd);
+        localStorage.setItem('online_shop_products', JSON.stringify(products));
+        renderShop();
+        this.reset();
+        alert('Product published successfully!');
+    });
+
+    // Order Processing
+    function openOrderModal(id) {
+        document.getElementById('orderProductId').value = id;
+        document.getElementById('orderModal').style.display = 'flex';
+    }
+    function closeModal() { document.getElementById('orderModal').style.display = 'none'; }
+
+    document.getElementById('submitOrderForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const prodId = parseInt(document.getElementById('orderProductId').value);
+        const product = products.find(p => p.id === prodId);
+
+        const newOrder = {
+            id: 'ORD-' + Date.now().toString().slice(-6),
+            productName: product.name,
+            price: product.price,
+            custName: document.getElementById('custName').value,
+            custPhone: document.getElementById('custPhone').value,
+            custAddress: document.getElementById('custAddress').value,
+            status: 'Pending'
+        };
+
+        orders.unshift(newOrder);
+        localStorage.setItem('online_shop_orders', JSON.stringify(orders));
+        renderOrdersTable();
+        closeModal();
+        this.reset();
+        alert('🎯 Success! Your order has been placed. Shop owner will call you soon.');
+    });
+
+    // Render Orders inside Admin View
+    function renderOrdersTable() {
+        const tbody = document.getElementById('adminOrdersTable');
+        tbody.innerHTML = '';
+
+        orders.forEach(o => {
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>${o.id}</strong></td>
+                    <td>${o.productName}</td>
+                    <td>
+                        <strong>${o.custName}</strong><br>
+                        <small>${o.custPhone}</small><br>
+                        <small style="color:var(--text-muted)">${o.custAddress}</small>
+                    </td>
+                    <td>৳${o.price}</td>
+                    <td><span class="status-badge ${o.status === 'Completed' ? 'completed' : ''}">${o.status}</span></td>
+                    <td>
+                        ${o.status === 'Pending' ? `<button onclick="completeOrder('${o.id}')" style="background:var(--success); color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Done</button>` : '✔️'}
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function completeOrder(id) {
+        let order = orders.find(o => o.id === id);
+        if(order) order.status = 'Completed';
+        localStorage.setItem('online_shop_orders', JSON.stringify(orders));
+        renderOrdersTable();
+    }
+
+    // Initialize Setup
+    renderShop();
+    renderOrdersTable();
+</script>
+</body>
+</html>
